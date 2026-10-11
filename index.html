@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Game Rắn Săn Mồi (Snake)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a, #1e1b4b);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 500px;
+            width: 100%;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            background: linear-gradient(to right, #4ade80, #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 5px;
+            text-shadow: 0 2px 10px rgba(74, 222, 128, 0.2);
+        }
+
+        .scoreboard {
+            display: flex;
+            gap: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .score-item span {
+            color: #4ade80;
+        }
+
+        .high-score-item span {
+            color: #38bdf8;
+        }
+
+        .game-board-container {
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            background-color: #090d16;
+        }
+
+        canvas {
+            display: block;
+            background-color: #0b1120;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .overlay h2 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: #f8fafc;
+        }
+
+        .overlay p {
+            color: #94a3b8;
+            margin-bottom: 20px;
+            font-size: 1rem;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        /* Nút điều khiển di động (Mobile Controls) */
+        .mobile-controls {
+            display: none;
+            grid-template-columns: repeat(3, 70px);
+            grid-template-rows: repeat(2, 60px);
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .ctrl-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 1.5rem;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            backdrop-filter: blur(5px);
+            transition: background 0.1s;
+        }
+
+        .ctrl-btn:active {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-up { grid-column: 2; grid-row: 1; }
+        .btn-left { grid-column: 1; grid-row: 2; }
+        .btn-down { grid-column: 2; grid-row: 2; }
+        .btn-right { grid-column: 3; grid-row: 2; }
+
+        .instructions {
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: #64748b;
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            .mobile-controls {
+                display: grid;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>RẮN SĂN MỒI</h1>
+        </header>
+
+        <div class="scoreboard">
+            <div class="score-item">Điểm: <span id="currentScore">0</span></div>
+            <div class="high-score-item">Kỷ lục: <span id="highScore">0</span></div>
+        </div>
+
+        <div class="game-board-container">
+            <canvas id="gameCanvas" width="400" height="400"></canvas>
+            
+            <!-- Màn hình chờ / Thua cuộc -->
+            <div id="gameOverlay" class="overlay">
+                <h2 id="overlayTitle">Sẵn sàng chưa?</h2>
+                <p id="overlayDesc">Sử dụng phím mũi tên hoặc WASD để di chuyển</p>
+                <button id="startBtn" class="btn">Chơi Ngay</button>
+            </div>
+        </div>
+
+        <!-- Điều khiển cảm ứng cho điện thoại -->
+        <div class="mobile-controls">
+            <div class="ctrl-btn btn-up" id="btnUp">⬆️</div>
+            <div class="ctrl-btn btn-left" id="btnLeft">⬅️</div>
+            <div class="ctrl-btn btn-down" id="btnDown">⬇️</div>
+            <div class="ctrl-btn btn-right" id="btnRight">➡️</div>
+        </div>
+
+        <div class="instructions">
+            Mẹo: Ăn thức ăn (chấm đỏ) để lớn lên. Tránh đâm vào tường và thân mình!
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const currentScoreEl = document.getElementById('currentScore');
+        const highScoreEl = document.getElementById('highScore');
+        const gameOverlay = document.getElementById('gameOverlay');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlayDesc = document.getElementById('overlayDesc');
+        const startBtn = document.getElementById('startBtn');
+
+        // Kích thước lưới game (Mỗi ô 20x20 pixels trên khung 400x400)
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+
+        let snake = [];
+        let food = { x: 0, y: 0 };
+        let dx = gridSize; // Vận tốc theo trục X
+        let dy = 0;        // Vận tốc theo trục Y
+        let score = 0;
+        let highScore = localStorage.getItem('snakeHighScore') || 0;
+        let gameInterval = null;
+        let isRunning = false;
+        let changingDirection = false; // Ngăn chặn lỗi ấn nhiều phím nhanh liên tục làm rắn tự cắn mình
+
+        highScoreEl.textContent = highScore;
+
+        // Lắng nghe sự kiện bàn phím
+        document.addEventListener('keydown', changeDirection);
+
+        // Lắng nghe sự kiện nút bấm trên màn hình cảm ứng
+        document.getElementById('btnUp').addEventListener('click', () => setDirection('UP'));
+        document.getElementById('btnDown').addEventListener('click', () => setDirection('DOWN'));
+        document.getElementById('btnLeft').addEventListener('click', () => setDirection('LEFT'));
+        document.getElementById('btnRight').addEventListener('click', () => setDirection('RIGHT'));
+
+        startBtn.addEventListener('click', resetGame);
+
+        function resetGame() {
+            snake = [
+                { x: 160, y: 200 },
+                { x: 140, y: 200 },
+                { x: 120, y: 200 }
+            ];
+            score = 0;
+            currentScoreEl.textContent = score;
+            dx = gridSize;
+            dy = 0;
+            isRunning = true;
+            gameOverlay.classList.add('hidden');
+            createFood();
+            
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(gameLoop, 100); // Tốc độ game (100ms mỗi khung hình)
+        }
+
+        function gameLoop() {
+            changingDirection = false;
+            clearCanvas();
+            drawFood();
+            moveSnake();
+            drawSnake();
+            checkGameOver();
+        }
+
+        function clearCanvas() {
+            ctx.fillStyle = '#0b1120';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Vẽ lưới mờ nhẹ làm nền
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < tileCount; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * gridSize, 0);
+                ctx.lineTo(i * gridSize, canvas.height);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, i * gridSize);
+                ctx.lineTo(canvas.width, i * gridSize);
+                ctx.stroke();
+            }
+        }
+
+        function drawSnake() {
+            snake.forEach((part, index) => {
+                // Đầu rắn màu xanh sáng, thân rắn màu nhạt hơn
+                ctx.fillStyle = index === 0 ? '#4ade80' : '#22c55e';
+                ctx.shadowColor = index === 0 ? '#4ade80' : 'transparent';
+                ctx.shadowBlur = index === 0 ? 10 : 0;
+                
+                // Vẽ thân rắn bo góc nhẹ
+                ctx.beginPath();
+                ctx.roundRect(part.x + 1, part.y + 1, gridSize - 2, gridSize - 2, 4);
+                ctx.fill();
+                ctx.shadowBlur =- 0; // Reset hiệu ứng bóng
+            });
+        }
+
+        function moveSnake() {
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+            snake.unshift(head);
+
+            // Kiểm tra xem rắn có ăn thức ăn không
+            const hasEatenFood = head.x === food.x && head.y === food.y;
+            if (hasEatenFood) {
+                score += 10;
+                currentScoreEl.textContent = score;
+                if (score > highScore) {
+                    highScore = score;
+                    highScoreEl.textContent = highScore;
+                    localStorage.setItem('snakeHighScore', highScore);
+                }
+                createFood();
+            } else {
+                snake.pop(); // Xóa đốt cuối nếu không ăn thức ăn
+            }
+        }
+
+        function randomGridCoord() {
+            return Math.floor(Math.random() * tileCount) * gridSize;
+        }
+
+        function createFood() {
+            food.x = randomGridCoord();
+            food.y = randomGridCoord();
+
+            // Đảm bảo thức ăn không sinh ra đè lên thân rắn
+            snake.forEach(part => {
+                const hasEaten = part.x === food.x && part.y === food.y;
+                if (hasEaten) createFood();
+            });
+        }
+
+        function drawFood() {
+            ctx.fillStyle = '#ef4444';
+            ctx.shadowColor = '#ef4444';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.arc(food.x + gridSize / 2, food.y + gridSize / 2, gridSize / 2 - 2, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        function changeDirection(event) {
+            const keyPressed = event.key;
+            if (keyPressed === 'ArrowUp' || keyPressed === 'w' || keyPressed === 'W') setDirection('UP');
+            if (keyPressed === 'ArrowDown' || keyPressed === 's' || keyPressed === 'S') setDirection('DOWN');
+            if (keyPressed === 'ArrowLeft' || keyPressed === 'a' || keyPressed === 'A') setDirection('LEFT');
+            if (keyPressed === 'ArrowRight' || keyPressed === 'd' || keyPressed === 'D') setDirection('RIGHT');
+        }
+
+        function setDirection(dir) {
+            if (changingDirection || !isRunning) return;
+
+            const goingUp = dy === -gridSize;
+            const goingDown = dy === gridSize;
+            const goingRight = dx === gridSize;
+            const goingLeft = dx === -gridSize;
+
+            if (dir === 'UP' && !goingDown) {
+                dx = 0;
+                dy = -gridSize;
+                changingDirection = true;
+            }
+            if (dir === 'DOWN' && !goingUp) {
+                dx = 0;
+                dy = gridSize;
+                changingDirection = true;
+            }
+            if (dir === 'LEFT' && !goingRight) {
+                dx = -gridSize;
+                dy = 0;
+                changingDirection = true;
+            }
+            if (dir === 'RIGHT' && !goingLeft) {
+                dx = gridSize;
+                dy = 0;
+                changingDirection = true;
+            }
+        }
+
+        function checkGameOver() {
+            const head = snake[0];
+
+            // Va chạm tường
+            const hitLeftWall = head.x < 0;
+            const hitRightWall = head.x >= canvas.width;
+            const hitToptWall = head.y < 0;
+            const hitBottomWall = head.y >= canvas.height;
+
+            if (hitLeftWall || hitRightWall || hitToptWall || hitBottomWall) {
+                endGame();
+            }
+
+            // Tự cắn thân
+            for (let i = 4; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    endGame();
+                }
+            }
+        }
+
+        function endGame() {
+            isRunning = false;
+            clearInterval(gameInterval);
+            overlayTitle.textContent = "Game Over!";
+            overlayDesc.textContent = `Điểm số của bạn: ${score}`;
+            startBtn.textContent = "Chơi Lại";
+            gameOverlay.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
