@@ -1,1 +1,1 @@
-# Game-r-n-s-n-m-i
+# Game-ran-san-moi
